@@ -69,9 +69,17 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+let cachedEnv: Env | null = null;
+
 export function validateEnv(): Env {
+  // Return cached value if already validated
+  if (cachedEnv) {
+    return cachedEnv;
+  }
+
   try {
-    return envSchema.parse(process.env);
+    cachedEnv = envSchema.parse(process.env);
+    return cachedEnv;
   } catch (error) {
     if (error instanceof z.ZodError) {
       console.error('❌ Environment validation failed:');
@@ -84,9 +92,7 @@ export function validateEnv(): Env {
   }
 }
 
-// Validate on import in non-test environments
-if (process.env.NODE_ENV !== 'test') {
-  validateEnv();
+// Export a getter function instead of validating at import time
+export function getEnv(): Env {
+  return validateEnv();
 }
-
-export const env = validateEnv();

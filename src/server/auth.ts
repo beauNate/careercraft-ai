@@ -6,7 +6,7 @@ import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as any,
+  adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || '',
@@ -56,7 +56,7 @@ export const authOptions: NextAuthOptions = {
   },
   callbacks: {
     async session({ token, session }) {
-      if (token) {
+      if (token && session.user) {
         session.user.id = token.id;
         session.user.name = token.name;
         session.user.email = token.email;
@@ -65,23 +65,15 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
-      const dbUser = await prisma.user.findUnique({
-        where: { email: token.email || '' },
-      });
-
-      if (!dbUser) {
-        if (user) {
-          token.id = user.id;
-        }
+      if (user) {
+        // Initial sign in - user object is available
+        token.id = user.id;
         return token;
       }
 
-      return {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        picture: dbUser.image,
-      };
+      // Subsequent requests - return existing token
+      // User data is already in the token from initial sign in
+      return token;
     },
   },
 };
